@@ -16,13 +16,34 @@ export type Telemetry = {
   video: string;
 };
 
-export default function SidePanel({ snap, tele }: { snap: Snapshot; tele: Telemetry }) {
+type Props = { snap: Snapshot; tele: Telemetry; onStart: () => void; onStop: () => void; onSettings: () => void };
+
+export default function SidePanel({ snap, tele, onStart, onStop, onSettings }: Props) {
   const { match, persisted } = snap;
+  const standby = snap.phase === "standby";
   const t = persisted.totals;
   const decided = t.humanRounds + t.aiRounds;
 
   return (
     <aside className="flex w-[380px] shrink-0 flex-col gap-3 overflow-y-auto border-l border-line bg-panel p-4 font-mono text-xs">
+      <div className="flex gap-2 font-sans">
+        {standby ? (
+          <button onClick={onStart} className="flex-1 rounded-lg bg-accent px-4 py-3 text-base font-bold text-black hover:brightness-110">
+            ▶ Start match
+          </button>
+        ) : (
+          <button onClick={onStop} className="flex-1 rounded-lg border border-rose-400/60 px-4 py-3 text-base font-bold text-rose-300 hover:bg-rose-500/10">
+            ■ Stop
+          </button>
+        )}
+        <button onClick={onSettings} className="rounded-lg border border-line px-4 py-3 text-base font-semibold hover:border-accent hover:text-accent">
+          ⚙ Settings
+        </button>
+      </div>
+      <div className="-mt-1 text-[11px] text-dim">
+        {standby ? `Ready · ${MODE_LABEL[match.mode]}` : "A match is in progress"}
+      </div>
+
       <Section title="AI // sealed move">
         <div className="break-all text-[11px] leading-snug text-accent">
           {snap.sealedHash ? `SHA-256  ${snap.sealedHash}` : "SHA-256  ················································"}
@@ -82,7 +103,7 @@ export default function SidePanel({ snap, tele }: { snap: Snapshot; tele: Teleme
       </Section>
 
       <div className="mt-auto text-[11px] leading-relaxed text-dim">
-        Space start / skip · R P S manual entry (after a misread) · ` or F2 admin panel
+        Space start / skip · R P S manual entry (after a misread) · ` or F2 settings
       </div>
     </aside>
   );

@@ -12,7 +12,14 @@ export default function Stage({ snap, cameraReady }: { snap: Snapshot; cameraRea
 
   let body: React.ReactNode = null;
 
-  if (phase === "idle" && !cameraReady) {
+  if (phase === "standby") {
+    body = (
+      <div className="text-center">
+        <div className={`${big} text-[min(4.5rem,4.5vw)]`}>Beat the AI, win a prize</div>
+        <div className="mt-4 text-[min(1.5rem,2vw)] text-dim">Waiting for the next player…</div>
+      </div>
+    );
+  } else if (phase === "idle" && !cameraReady) {
     body = <div className="text-2xl text-dim">Waiting for camera…</div>;
   } else if (phase === "idle") {
     body = (

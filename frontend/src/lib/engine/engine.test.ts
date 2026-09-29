@@ -27,7 +27,8 @@ async function waitFor(engine: GameEngine, pred: (s: ReturnType<GameEngine["getS
 }
 
 test("full quick match: auto-start on hand, sealed hash verifies on reveal", async () => {
-  const engine = new GameEngine({ config: { ...fast, mode: "quick" }, ...timing });
+  const engine = new GameEngine({ config: { ...fast, mode: "quick" }, ...timing, matchOverMs: 150 });
+  engine.startMatch();
   const phases: Phase[] = [];
   engine.subscribe(() => {
     const p = engine.getSnapshot().phase;
@@ -53,12 +54,18 @@ test("full quick match: auto-start on hand, sealed hash verifies on reveal", asy
   assert.ok(s3.match.winner);
   assert.equal(s3.persisted.totals.matches, 1);
   assert.ok(phases.includes("capturing") && phases.includes("result"));
+  // 整场结束后自动回到待机，即使手还在画面里也不会自己开始下一场
+  await waitFor(engine, (s) => s.phase === "standby", 3000);
+  await sleep(300);
+  assert.equal(engine.getSnapshot().phase, "standby");
+  assert.equal(engine.getSnapshot().match.rounds.length, 0, "fresh match waiting");
   stop();
   engine.dispose();
 });
 
 test("unreadable hand → retry → manual entry resolves the round", async () => {
   const engine = new GameEngine({ config: { ...fast, mode: "quick" }, ...timing });
+  engine.startMatch();
   let phase = "";
   engine.subscribe(() => (phase = engine.getSnapshot().phase));
   // 手在画面里但识别不出手势
@@ -74,8 +81,22 @@ test("unreadable hand → retry → manual entry resolves the round", async () =
   void phase;
 });
 
-test("no hand at all → never starts; Space starts; background hand below area threshold ignored", async () => {
+test("default is standby: hand is ignored until staff starts a match", async () => {
   const engine = new GameEngine({ config: { ...fast, mode: "quick" }, ...timing });
+  assert.equal(engine.getSnapshot().phase, "standby");
+  const stop = camera(engine, () => ({ present: true, move: "rock" }));
+  await sleep(250);
+  assert.equal(engine.getSnapshot().phase, "standby", "a hand alone must not start anything");
+  engine.startNow(); // Space in standby starts a match, not a round
+  assert.equal(engine.getSnapshot().phase, "idle");
+  await waitFor(engine, (s) => s.phase === "countdown");
+  stop();
+  engine.dispose();
+});
+
+test("no hand → idle never starts; small background hand ignored; Space starts round; abort → standby", async () => {
+  const engine = new GameEngine({ config: { ...fast, mode: "quick" }, ...timing });
+  engine.startMatch();
   const stopEmpty = camera(engine, () => ({ present: false, move: null }));
   await sleep(150);
   assert.equal(engine.getSnapshot().phase, "idle");
@@ -90,11 +111,17 @@ test("no hand at all → never starts; Space starts; background hand below area 
 
   engine.startNow();
   assert.equal(engine.getSnapshot().phase, "countdown");
+  engine.abort(); // Stop：立刻中止倒数并回到待机，且之后不会再有残留定时器触发
+  assert.equal(engine.getSnapshot().phase, "standby");
+  await sleep(300);
+  assert.equal(engine.getSnapshot().phase, "standby");
+  assert.equal(engine.getSnapshot().persisted.population.rounds, 0);
   engine.dispose();
 });
 
 test("learning mode: AI is random & unscored during learning rounds; config change resets", async () => {
   const engine = new GameEngine({ config: { ...fast, mode: "learning", learnRounds: 2, finalBestOf: 1 }, ...timing });
+  engine.startMatch();
   const stop = camera(engine, () => ({ present: true, move: "scissors" }));
   await waitFor(engine, (s) => s.phase === "reveal");
   assert.equal(engine.getSnapshot().match.stage, "learning");
@@ -103,7 +130,7 @@ test("learning mode: AI is random & unscored during learning rounds; config chan
   assert.equal(engine.getSnapshot().persisted.totals.humanRounds + engine.getSnapshot().persisted.totals.aiRounds + engine.getSnapshot().persisted.totals.ties, 0, "learning rounds not counted in totals");
   stop();
   engine.setConfig({ mode: "series", seriesLength: 7 });
-  assert.equal(engine.getSnapshot().phase, "idle");
+  assert.equal(engine.getSnapshot().phase, "standby");
   assert.equal(engine.getSnapshot().match.mode, "series");
   assert.equal(engine.getSnapshot().match.rounds.length, 0);
   engine.dispose();

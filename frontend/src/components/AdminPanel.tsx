@@ -17,12 +17,12 @@ export default function AdminPanel(p: Props) {
   return (
     <div className="absolute inset-y-0 right-0 z-20 w-[380px] overflow-y-auto border-l border-accent/40 bg-panel/95 p-4 text-sm shadow-2xl backdrop-blur">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-bold">Admin</h2>
+        <h2 className="text-base font-bold">Settings</h2>
         <button className="rounded border border-line px-2 py-1 text-dim hover:text-fg" onClick={p.onClose}>
-          Close (`)
+          Close
         </button>
       </div>
-      <p className="mb-4 text-xs text-dim">Changing mode or rules restarts the current match.</p>
+      <p className="mb-4 text-xs text-dim">Changing anything here stops the current match and returns to standby.</p>
 
       <Label>Mode</Label>
       <div className="mb-4 grid gap-2">

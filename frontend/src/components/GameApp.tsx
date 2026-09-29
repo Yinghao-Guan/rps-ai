@@ -187,7 +187,7 @@ export default function GameApp() {
         <header className="flex items-end justify-between">
           <div>
             <div className="text-xs uppercase tracking-[0.3em] text-dim">{MODE_LABEL[match.mode]}</div>
-            <div className="text-2xl font-bold">{progressLabel(match)}</div>
+            <div className="text-2xl font-bold">{snap.phase === "standby" ? "Standby" : progressLabel(match)}</div>
           </div>
           <div className="flex items-center gap-6 text-4xl font-black tabular-nums">
             <span>
@@ -209,14 +209,23 @@ export default function GameApp() {
             <Stage snap={snap} cameraReady={tele.status === "running"} />
             {tele.status === "error" && (
               <div className="absolute inset-x-0 bottom-0 bg-rose-900/80 p-3 text-center text-sm">
-                Camera error: {tele.error}. Allow camera access, or pick another camera in Admin (`).
+                Camera error: {tele.error}. Allow camera access, or pick another camera in Settings.
               </div>
             )}
           </div>
         </div>
       </main>
 
-      <SidePanel snap={snap} tele={tele} />
+      <SidePanel
+        snap={snap}
+        tele={tele}
+        onStart={() => engine.startMatch()}
+        onStop={() => {
+          const inProgress = snap.match.rounds.length > 0 && snap.match.stage !== "over";
+          if (!inProgress || window.confirm("Stop the current match?")) engine.abort();
+        }}
+        onSettings={() => setAdminOpen((o) => !o)}
+      />
 
       {adminOpen && (
         <AdminPanel

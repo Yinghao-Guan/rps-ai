@@ -12,7 +12,9 @@
 
 ## 产品需求（用户已确认）
 
-三种对局模式，由工作人员在管理面板（按 `` ` `` 或 F2）里切换：
+**运行方式（用户已确认）**：默认停在 `standby`（待机，摄像头看到手也不会开始）。board 成员点侧栏 **Start match** 后，玩**一整场**（一位访客的一个 Bo3 / Series / Learning），场内各回合仍是“手一出现就自动倒数”；一场结束（或点 Stop）自动回到待机，必须再点 Start 才开始下一位。所有设置都在侧栏 **Settings** 按钮里（快捷键 `` ` `` / F2 仍可用），改任何设置都会中止当前场并回到待机。
+
+三种对局模式，在 Settings 里切换：
 
 | 模式 | 场景 | 规则 | AI |
 |---|---|---|---|
@@ -39,7 +41,7 @@ clubAI/
         └── lib/
             ├── game/             # types, config(三种模式+参数), match(对局规则，纯函数)
             ├── ai/               # predictor(马尔可夫), population(人群先验), strategy(出招决策)
-            ├── engine/engine.ts  # 一局的状态机：idle→countdown→capturing→reveal→result(→retry/matchOver)
+            ├── engine/engine.ts  # 一局的状态机：standby→idle→countdown→capturing→reveal→result(→retry/matchOver→standby)
             ├── vision/           # classify(21点→石头/剪刀/布), tracker(MediaPipe), draw(骨架)
             ├── sha256.ts, persist.ts
             └── *.test.ts

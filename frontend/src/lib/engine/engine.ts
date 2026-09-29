@@ -8,13 +8,16 @@ import { randomNonce, sha256Hex } from "../sha256.ts";
 /**
  * 对局引擎：一局的流程状态机，与 React / 浏览器无关。
  *
- *   idle ──手出现≥dwellMs 或 Space──▶ countdown(3,2,1) ──▶ capturing(SHOOT) ──▶ reveal ──▶ result
+ *   standby ──工作人员点 Start──▶ idle ──手出现≥dwellMs 或 Space──▶ countdown(3,2,1) ──▶ capturing(SHOOT) ──▶ reveal ──▶ result
  *     ▲                                                      │读不出手势                │
  *     └────────────────── retry(2.2s，可按 R/P/S 人工录入) ◀──┘        下一局 idle / 整场结束 matchOver
  *
+ * 默认停在 standby（不响应手）；一场（match）打完或工作人员 Stop 后也回到 standby，
+ * 必须由工作人员再点 Start 才会开始下一位访客。
+ *
  * AI 的出招在倒数开始时就已锁定（只公开 SHA-256(招式:nonce)），揭晓时才公开 nonce。
  */
-export type Phase = "idle" | "countdown" | "capturing" | "reveal" | "result" | "retry" | "matchOver";
+export type Phase = "standby" | "idle" | "countdown" | "capturing" | "reveal" | "result" | "retry" | "matchOver";
 
 export type Totals = { matches: number; humanMatchWins: number; aiMatchWins: number; humanRounds: number; aiRounds: number; ties: number };
 
@@ -72,7 +75,7 @@ export class GameEngine {
   private config: GameConfig;
   private match: MatchState;
   private persisted: Persisted;
-  private phase: Phase = "idle";
+  private phase: Phase = "standby";
   private snap: Snapshot;
   private listeners = new Set<() => void>();
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -158,11 +161,20 @@ export class GameEngine {
     this.abort();
   }
 
-  /** 放弃当前一场，回到待机并开新的一场 */
+  /** 工作人员开始一场：standby → idle（等手出现后自动开始第一回合） */
+  startMatch() {
+    if (this.phase !== "standby") return;
+    this.match = newMatch(this.config);
+    this.failures = 0;
+    this.toIdle();
+  }
+
+  /** 放弃当前一场，回到 standby（等工作人员再点 Start） */
   abort() {
     this.clearTimer();
     this.match = newMatch(this.config);
-    this.toIdle();
+    this.failures = 0;
+    this.toStandby();
   }
 
   resetStats() {
@@ -171,9 +183,10 @@ export class GameEngine {
     this.emit();
   }
 
-  /** Space：待机时立刻开始；整场结束时跳到下一位 */
+  /** Space：standby 时开始一场；等手时立刻开始本回合；整场结果页时跳过 */
   startNow() {
-    if (this.phase === "idle") this.startRound();
+    if (this.phase === "standby") this.startMatch();
+    else if (this.phase === "idle") this.startRound();
     else if (this.phase === "matchOver") this.abort();
   }
 
@@ -231,8 +244,19 @@ export class GameEngine {
     this.timer = setTimeout(fn, ms);
   }
 
+  private toStandby() {
+    this.phase = "standby";
+    this.resetRoundState();
+    this.emit();
+  }
+
   private toIdle() {
     this.phase = "idle";
+    this.resetRoundState();
+    this.emit();
+  }
+
+  private resetRoundState() {
     this.count = null;
     this.decision = null;
     this.nonce = null;
@@ -242,7 +266,6 @@ export class GameEngine {
     this.message = null;
     this.presentSince = null;
     this.dwell = 0;
-    this.emit();
   }
 
   private startRound() {
