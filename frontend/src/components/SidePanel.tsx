@@ -63,6 +63,16 @@ export default function SidePanel({ snap, tele, onStart, onStop, onSettings }: P
         <NeuralNet phase={snap.phase} aiMove={snap.aiMove} />
       </Panel>
 
+      <Panel cmd="vision --scan" title="HAND TRACKING" right={<Chip live={tele.status === "running"}>{tele.status === "running" ? `${tele.fps.toFixed(0)} FPS` : tele.status.toUpperCase()}</Chip>}>
+        <Row k="camera" v={tele.status === "error" ? `error: ${tele.error}` : tele.video} />
+        <Row k="inference" v={`${tele.inferMs.toFixed(1)} ms · ${tele.delegate ?? "-"}`} />
+        <Row k="hands" v={`${tele.hands}${tele.handedness ? ` (${tele.handedness})` : ""}${snap.handInZone ? " · in zone" : ""}`} />
+        <Row k="gesture" v={tele.cls?.move ? `${tele.cls.move} · ${(tele.cls.confidence * 100).toFixed(0)}%` : "—"} />
+        <Row k="PIP° i m r p" v={tele.cls ? tele.cls.angles.map((a) => a.toFixed(0).padStart(3)).join(" ") : "—"} />
+      </Panel>
+
+      {/* 不显示 AI 对玩家下一招的预测（也不显示 exploiting/random 状态）：显示出来玩家就能反制 AI */}
+
       <Panel cmd="seal --sha256" title="LOCKED MOVE" right={verified ? <Chip live>✓ VERIFIED</Chip> : <Chip>{snap.sealedHash ? "SEALED" : "IDLE"}</Chip>}>
         <div className="font-medium leading-relaxed tracking-[0.06em] text-accent">
           {(hashLines ?? ["················", "················", "················", "················"]).map((_, i) => (
@@ -74,16 +84,6 @@ export default function SidePanel({ snap, tele, onStart, onStop, onSettings }: P
         <div className="mt-2 break-all text-[11px] text-dim">
           {snap.nonce ? `nonce ${snap.nonce} · move ${snap.aiMove}` : "nonce  hidden until you throw"}
         </div>
-      </Panel>
-
-      {/* 不显示 AI 对玩家下一招的预测（也不显示 exploiting/random 状态）：显示出来玩家就能反制 AI */}
-
-      <Panel cmd="vision --scan" title="HAND TRACKING" right={<Chip live={tele.status === "running"}>{tele.status === "running" ? `${tele.fps.toFixed(0)} FPS` : tele.status.toUpperCase()}</Chip>}>
-        <Row k="camera" v={tele.status === "error" ? `error: ${tele.error}` : tele.video} />
-        <Row k="inference" v={`${tele.inferMs.toFixed(1)} ms · ${tele.delegate ?? "-"}`} />
-        <Row k="hands" v={`${tele.hands}${tele.handedness ? ` (${tele.handedness})` : ""}${snap.handInZone ? " · in zone" : ""}`} />
-        <Row k="gesture" v={tele.cls?.move ? `${tele.cls.move} · ${(tele.cls.confidence * 100).toFixed(0)}%` : "—"} />
-        <Row k="PIP° i m r p" v={tele.cls ? tele.cls.angles.map((a) => a.toFixed(0).padStart(3)).join(" ") : "—"} />
       </Panel>
 
       <Panel cmd="cat match.log" title={MODE_LABEL[match.mode].toUpperCase()}>
