@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // exFAT 上 macOS 生成的 AppleDouble 垃圾文件
+    "**/._*",
   ]),
 ]);
 

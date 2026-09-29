@@ -1,55 +1,88 @@
 # CLAUDE.md
 
-项目：**石头剪子布 AI**（目录名 clubAI）。具体需求由用户后续逐步给出，此文件只记录长期有效的规则与工程约定。
+项目：**石头剪子布 AI**（目录名 clubAI）。学校 computer science club 社团展示日的摊位游戏：来的人对着摄像头和 AI 玩石头剪子布，赢了拿奖品，输了没有。展示日是**现场演示**，稳定压倒一切。
 
 ## 硬性规则
 
-1. **跨平台、插盘即用**：项目放在 Samsung T7 移动硬盘上，须在 macOS / Windows / Linux 上运行，且**不改代码**（目标设备已装好 Node、Python 环境即可）。写任何代码、脚本、路径处理前先想三个系统会不会都行。
-2. **Git 仅本地**：只有本地仓库，永远不建远程仓库、不 push。何时提交由我判断；提交信息末尾带 Co-Authored-By 署名。
-3. **前端 Next.js，包管理只用 npm**（不用 yarn / pnpm）。**后端单独用 Python**，与前端是两个独立进程，允许多开一个服务。
+1. **跨平台、插盘即用**：项目放在 Samsung T7 移动硬盘（exFAT）上，须在 macOS / Windows / Linux 上运行且**不改代码**（目标设备已装好 Node 即可）。首选设备 ROG Strix SCAR 18（Windows，4090，摄像头 720p），备用 MacBook Pro 14" M4（1080p Center Stage 摄像头，可能外接 16" 4K 显示器）。
+2. **Git 仅本地**：只有本地仓库，永远不建远程、不 push。何时提交由我判断；提交信息末尾带 Co-Authored-By 署名。
+3. **前端 Next.js，包管理只用 npm**（不用 yarn / pnpm）。
+4. **目前没有后端，也不要加。** AI 逻辑很轻，全部用 TypeScript 在浏览器里跑。用户不介意将来多开一个 Python 服务，但只有真出现重计算需求时才加（那时再决定框架，接口走同源 `/api/*` + Next rewrites）。
+5. **现场可能没网**：运行时不得依赖任何 CDN / 在线字体 / 在线模型。MediaPipe 的 wasm 由 `/mediapipe/*` 路由从 node_modules 托管，模型在 `frontend/public/models/`，字体用系统字体。
+
+## 产品需求（用户已确认）
+
+三种对局模式，由工作人员在管理面板（按 `` ` `` 或 F2）里切换：
+
+| 模式 | 场景 | 规则 | AI |
+|---|---|---|---|
+| `quick` | 人多，要快 | Best-of-3（先赢 2 局），平局重打 | 只“略占优”：以 `quickEdge`(0.4) 的概率利用预测，其余随机 |
+| `series` | 人少 | 打满 N 个有胜负的局（7–13，奇数，平局重打），胜局多者赢 | 全程在线学习，`deepEdge`(0.9) |
+| `learning` | 人少 | 先 L 局（默认 10）**学习局**：AI 随机出招、只观察、不计分；再打最终局（1 局或 Bo3） | 学习局后用模型，`deepEdge` |
+
+- **AI 算法**（`lib/ai/`）：层级平滑的条件频率模型（带时间衰减的变阶马尔可夫链）：人群先验 → 全局频率 → 条件于(上一局人的出招+结果) → 条件于最近两招。人群先验来自当天所有访客（localStorage 累积，越玩越准）。AI 出招 = 期望收益最大的招（以 edge 概率），否则均匀随机（对纯随机玩家不吃亏）。模拟见 `logic.test.ts`：对理想化的规律型玩家胜率很高，但**真人比模拟机器人随机得多，实际优势会小得多**，不要向用户承诺胜率。
+- **哈希锁定**：AI 在倒数前就锁定出招，右侧面板显示 `SHA-256(招式:nonce)`，揭晓时公开 nonce。用户明确说这主要是**视觉资产**（“很 CS、很 AI”），不是为了让人验证防作弊。
+- **UI 方向**：最终要有“AI 感”——侧边数据面板、MediaPipe 手部骨架（已有）、**可视化神经网络（尚未做）**在对局时动态变化。要与社团 logo / 风格 / 摊位装饰匹配（用户之后提供素材）。**目前 UI 只是“最简可用”，不要过早打磨**；等用户给风格再改。
+- 识别不出手势 → 本回合作废并提示重来；工作人员可按 R/P/S 人工录入。
 
 ## 目录结构
 
 ```
 clubAI/
-├── package.json        # 仅编排脚本，无依赖、无 lockfile
-├── scripts/run.mjs     # 跨平台启动器（setup/dev/build/start）
-├── frontend/           # Next.js 16 · App Router · TypeScript · Tailwind v4 · src/ · 别名 @/*
-└── backend/            # Python · FastAPI + uvicorn
-    ├── requirements.txt
-    └── app/main.py     # ASGI 入口 app.main:app，路由统一挂在 /api/*
+├── package.json         # 仅编排脚本，无依赖、无 lockfile
+├── scripts/run.mjs      # 跨平台启动器（setup/dev/build/start）
+└── frontend/            # Next.js 16 · App Router · TypeScript · Tailwind v4 · src/ · 别名 @/*
+    ├── public/models/hand_landmarker.task     # MediaPipe 手部模型（Apache 2.0，已提交）
+    └── src/
+        ├── app/                  # page.tsx → GameLoader(ssr:false) → GameApp；mediapipe/[...path]/route.ts 托管 wasm
+        ├── components/           # GameApp（摄像头循环+布局）/ Stage（大字）/ SidePanel / AdminPanel
+        └── lib/
+            ├── game/             # types, config(三种模式+参数), match(对局规则，纯函数)
+            ├── ai/               # predictor(马尔可夫), population(人群先验), strategy(出招决策)
+            ├── engine/engine.ts  # 一局的状态机：idle→countdown→capturing→reveal→result(→retry/matchOver)
+            ├── vision/           # classify(21点→石头/剪刀/布), tracker(MediaPipe), draw(骨架)
+            ├── sha256.ts, persist.ts
+            └── *.test.ts
 ```
 
-## 常用命令（在项目根目录）
+依赖方向：`components → engine → ai/game`；`vision` 只产出帧喂给 `engine.pushFrame`。`game/ ai/ engine/ sha256 vision/classify` 都是**纯 TS、无 DOM 依赖**，import 带 `.ts` 后缀，可在 Node 里直接测。
+
+## 常用命令（项目根目录）
 
 | 命令 | 作用 |
 |---|---|
-| `npm run setup` | 装/校验依赖（前端 node_modules + 后端 venv），其余命令会自动先执行 |
-| `npm run dev` | 同时启动前端 `:3000`（热重载）与后端 `:8000`（`--reload`），Ctrl+C 一并退出 |
-| `npm run build` / `npm run start` | 生产构建 / 生产启动 |
+| `npm run dev` | 开发服务器 `http://localhost:3000`（缺依赖时自动装） |
+| `npm run build` / `npm run start` | 生产构建 / 生产启动（**展示日建议用生产模式**） |
+| `npm run setup` | 只装/校验依赖 |
 | `cd frontend && npm run lint` | ESLint |
+| `cd frontend && npm run test:logic` | 逻辑 + 引擎测试（Node 内置 runner 直接跑 TS，需 Node ≥ 22.18） |
+| `cd frontend && node node_modules/typescript/bin/tsc --noEmit` | 类型检查 |
 
-端口可用环境变量 `FRONTEND_PORT` / `BACKEND_PORT` 覆盖。
+端口可用环境变量 `PORT` 覆盖。
 
-前后端通信：浏览器只请求前端同源的 `/api/*`，由 `frontend/next.config.ts` 的 rewrites 转发到 Python 后端（默认 `http://127.0.0.1:8000`，由 `BACKEND_URL` 覆盖）。所以前端代码里写相对路径 `fetch("/api/...")`，不要写死后端地址，也就无需 CORS。新增后端路由必须以 `/api/` 开头。
+## 视觉层要点
 
-## 为什么有这些“怪”设计（exFAT 硬盘的坑）
+- 分类器用 **3D 世界坐标**里食指~小指 PIP 关节的弯曲角：伸直 ≈150–165°，握紧 ≈40–90°（用 MediaPipe 真实输出测得）。阈值 `UP_ANGLE=130 / DOWN_ANGLE=115` 在 `classify.ts` 顶部；右侧面板实时显示四个角度，现场可据此微调。石头=四指全弯，剪刀=食中伸+无名小指弯，布=至少三指伸，其余（如只伸食指）→ null。
+- 多只手取包围盒最大的；`minHandArea` 过滤背景围观者。判定手势取 SHOOT 后采集窗口最后 `settleMs` 内的**众数**（≥3 帧、一致性 ≥60%）。
+- **只在真实摄像头前验证过一半**：wasm/模型加载、GPU 检测、分类器在 emoji 手上跑通，但内置浏览器没有摄像头，真手、真实光照下的准确率**未测**。
+- MacBook 的 Center Stage 会自动重构图，可能影响识别，现场建议在控制中心关掉；720p 摄像头在手离镜头较远时手偏小，需调小 `minHandArea`。
 
-T7 是 **exFAT**：没有符号链接、没有可执行位；macOS 还会不停生成 `._*` 元数据垃圾文件。据此：
+## exFAT 硬盘的坑（据此设计）
 
-- **不要用符号链接，不要依赖 `chmod +x` / shebang 直接执行。** 脚本一律 `node scripts/x.mjs` / `<venv>/python -m x` 方式调用。
-- `frontend/.npmrc` 里 `bin-links=false`：node_modules 里没有 `.bin`，所以 `package.json` 的脚本要写成 `node ./node_modules/<pkg>/...`，**不能直接写 `next` / `eslint`**。新增依赖需要 CLI 时同理（先确认它的入口 js 路径）。
-- **node_modules 不跨平台**（含原生二进制）。启动器在 `node_modules/.clubai-platform` 记录平台，换系统后第一次运行会自动 `npm ci` 重装（需联网）。`package-lock.json` 含全平台条目，务必提交。
-- **Python venv 按平台分开**：`backend/.venv-<platform>-<arch>`，用 `python -m venv --copies` 创建，互不覆盖；`requirements.txt` 变化时自动重装。Python 需 ≥ 3.10；Windows 上命令名可能是 `py -3` / `python`，启动器已探测，自己写脚本时别硬写 `python3`。
-- `._*` 已在 `.gitignore`，启动器每次运行会清理项目里的（不含 node_modules / venv）。看到奇怪的解析报错先查是不是 `._xxx.ts` / `._xxx.py`。
-- `.gitattributes` 强制 LF（`.bat/.cmd/.ps1` 为 CRLF）。本地仓库已设 `core.fileMode=false`、`core.symlinks=false`、`core.autocrlf=false`（这些在 `.git/config`，不随盘外克隆走；仓库就在盘上，所以没问题）。
-- 路径处理：Node 用 `path.join`，Python 用 `pathlib`；不要拼 `/` 或 `\`，引用文件时大小写必须与磁盘上完全一致（exFAT 不区分大小写，macOS 上写错不报错，换到 Linux 的 Node/Python 才会炸）。
-- 在 Linux 上若 git 报 “dubious ownership”，用 `git config --global --add safe.directory <项目路径>`（exFAT 无属主信息）。
+T7 是 **exFAT**：没有符号链接、没有可执行位；macOS 还会不停生成 `._*` 垃圾文件。
+
+- **不要用符号链接，不要依赖 `chmod +x` / shebang 直接执行。** 脚本一律 `node scripts/x.mjs` 方式调用。
+- `frontend/.npmrc` 里 `bin-links=false`：node_modules 里没有 `.bin`，所以 `package.json` 的脚本要写成 `node ./node_modules/<pkg>/...`，**不能直接写 `next` / `eslint`**。
+- **node_modules 不跨平台**（含原生二进制）。启动器在 `node_modules/.clubai-platform` 记录平台，换系统后第一次运行会自动 `npm ci` 重装（需联网，**展示前务必在目标电脑上先跑一次**）。`package-lock.json` 含全平台条目，务必提交。
+- **`._*` 文件会被 eslint/tsc 当源码解析而报错**（真发生过）。已在 `eslint.config.mjs` / `tsconfig.json` / `.gitignore` 里排除，启动器每次也会清理。看到奇怪解析错误先查 `._xxx`。
+- `.gitattributes` 强制 LF（`.bat/.cmd/.ps1` 为 CRLF）。本地仓库已设 `core.fileMode=false`、`core.symlinks=false`、`core.autocrlf=false`。
+- 路径处理：Node 用 `path.join`，不拼 `/` 或 `\`。引用文件时大小写必须与磁盘完全一致（exFAT 不区分大小写，macOS 上写错不报错，换到 Linux 才炸）。
+- Linux 上若 git 报 “dubious ownership”：`git config --global --add safe.directory <项目路径>`。
+- 键盘快捷键用 `e.code` 而不是 `e.key`（中文输入法开着时 `e.key` 是 "Process"）。
 
 ## 约定
 
+- 沟通用中文；代码标识符、commit message 用英文。
 - 写 Next.js 代码前先看 `frontend/AGENTS.md`（由 `next dev` 自动维护，已被 `frontend/CLAUDE.md` 引用）：这个版本与训练数据里的 Next 有破坏性差异，权威文档在 `frontend/node_modules/next/dist/docs/`。
-
-- 沟通用中文；代码、标识符、commit message 用英文。
 - 先做用户要求的，不要顺手加没被要求的功能、依赖或抽象。
-- 加依赖：前端 `cd frontend && npm install <pkg>`（提交更新后的 `package-lock.json`）；后端写进 `backend/requirements.txt`。
+- 加依赖：`cd frontend && npm install <pkg>`（提交更新后的 `package-lock.json`）。

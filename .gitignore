@@ -3,13 +3,6 @@ node_modules/
 .next/
 out/
 
-# python (venv 按平台分开：backend/.venv-<platform>-<arch>)
-.venv*/
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.ruff_cache/
-
 # env（示例文件用 .env.example，可提交）
 .env
 .env.*
