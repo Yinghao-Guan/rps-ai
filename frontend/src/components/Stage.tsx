@@ -38,6 +38,24 @@ export default function Stage({ snap, cameraReady }: { snap: Snapshot; cameraRea
       ) : (
         <div key={count} className={`${big} text-[min(18rem,32vh)] leading-none`}>{count}</div>
       );
+  } else if (phase === "matchOver" && match.mode === "series") {
+    body = (
+      <div className="text-center">
+        <div className="text-[min(1.5rem,2vw)] font-semibold tracking-[0.4em] text-dim">FINAL SCORE</div>
+        <div className={`${big} mt-2 flex items-baseline justify-center gap-[min(3rem,3vw)] text-[min(12rem,11vw)] leading-none tabular-nums`}>
+          <span className={match.winner === "human" ? "text-emerald-400" : ""}>{match.humanWins}</span>
+          <span className="text-dim">:</span>
+          <span className={match.winner === "ai" ? "text-rose-400" : ""}>{match.aiWins}</span>
+        </div>
+        <div className="mt-1 flex justify-center gap-[min(12rem,12vw)] text-[min(1.5rem,2vw)] font-semibold tracking-widest text-dim">
+          <span>YOU</span>
+          <span>AI</span>
+        </div>
+        <div className={`${big} mt-6 text-[min(3rem,3vw)]`}>
+          {match.winner === "human" ? "🎉 You beat the AI — claim your prize!" : "The AI takes this match"}
+        </div>
+      </div>
+    );
   } else if (phase === "reveal" || phase === "result" || phase === "matchOver") {
     body = (
       <div className="text-center">
@@ -60,7 +78,35 @@ export default function Stage({ snap, cameraReady }: { snap: Snapshot; cameraRea
     body = <div className={`${big} max-w-3xl text-center text-[min(2.25rem,3vw)] text-amber-300`}>{snap.message}</div>;
   }
 
-  return <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/25">{body}</div>;
+  const showAiCard = phase === "countdown" || phase === "capturing";
+  return (
+    <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/25">
+      {body}
+      {showAiCard && <AiCard snap={snap} />}
+    </div>
+  );
+}
+
+/** 右上角的 AI 出招卡：倒数时是“已锁定”，SHOOT 的同一时刻翻出招式 */
+function AiCard({ snap }: { snap: Snapshot }) {
+  const move = snap.aiMove;
+  return (
+    <div className="absolute right-[2%] top-[3%] flex w-[min(15rem,20%)] flex-col items-center rounded-2xl border-2 border-accent bg-black/70 px-3 py-4 shadow-[0_0_40px_rgba(56,232,255,0.35)] backdrop-blur-sm">
+      <div className="text-[min(1rem,1.2vw)] font-bold tracking-[0.3em] text-accent">AI</div>
+      {move ? (
+        <div key={move} className="pop text-center">
+          <div className="text-[min(7rem,8vw)] leading-none">{MOVE_EMOJI[move]}</div>
+          <div className="mt-1 text-[min(1.5rem,1.8vw)] font-black">{MOVE_NAME[move]}</div>
+        </div>
+      ) : (
+        <div className="text-center">
+          <div className="text-[min(5rem,6vw)] leading-none">🔒</div>
+          <div className="mt-1 text-[min(1rem,1.2vw)] font-bold tracking-widest text-dim">LOCKED</div>
+          <div className="mt-1 font-mono text-[min(0.8rem,1vw)] text-accent/80">{snap.sealedHash?.slice(0, 10)}…</div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Hand({ label, move }: { label: string; move: Snapshot["humanMove"] }) {

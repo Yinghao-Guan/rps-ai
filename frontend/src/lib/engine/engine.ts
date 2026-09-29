@@ -40,7 +40,7 @@ export type Snapshot = {
   /** 3,2,1 倒数；0 = SHOOT；其余阶段为 null */
   count: number | null;
   sealedHash: string | null;
-  /** 仅在 reveal 及之后公开 */
+  /** 仅在 reveal 及之后公开（AI 的招在 SHOOT 时就公开，nonce 要等揭晓） */
   nonce: string | null;
   aiMove: Move | null;
   humanMove: Move | null;
@@ -88,6 +88,8 @@ export class GameEngine {
   private outcome: Outcome | null = null;
   private message: string | null = null;
   private failures = 0;
+  /** 读取失败后的下一回合 AI 必须纯随机：否则玩家可故意藏手来“偷看” AI 的（可预测的）出招 */
+  private peekGuard = false;
 
   private frames: FrameInput[] = [];
   private presentSince: number | null = null;
@@ -140,7 +142,8 @@ export class GameEngine {
       count: this.count,
       sealedHash: this.sealedHash,
       nonce: revealed ? this.nonce : null,
-      aiMove: revealed ? (this.decision?.move ?? null) : null,
+      // AI 的招在 SHOOT 的同时公开（此前只显示锁定的哈希）
+      aiMove: revealed || this.phase === "capturing" ? (this.decision?.move ?? null) : null,
       humanMove: revealed ? this.humanMove : null,
       outcome: showOutcome ? this.outcome : null,
       prediction: this.decision?.predicted ?? null,
@@ -194,6 +197,7 @@ export class GameEngine {
   manual(move: Move) {
     if (this.phase !== "retry") return;
     this.clearTimer();
+    this.peekGuard = false;
     this.resolve(move);
   }
 
@@ -257,6 +261,7 @@ export class GameEngine {
   }
 
   private resetRoundState() {
+    if (this.phase === "standby") this.peekGuard = false;
     this.count = null;
     this.decision = null;
     this.nonce = null;
@@ -271,7 +276,8 @@ export class GameEngine {
   private startRound() {
     const m = this.match;
     const history: Pair[] = m.rounds.map((r) => ({ human: r.human, ai: r.ai }));
-    const learning = m.stage === "learning";
+    const learning = m.stage === "learning" || this.peekGuard;
+    this.peekGuard = false;
     const edge = m.mode === "quick" ? this.config.quickEdge : this.config.deepEdge;
     this.decision = decide({ history, population: this.persisted.population, edge, learning, rng: this.rng });
     this.nonce = randomNonce();
@@ -301,10 +307,10 @@ export class GameEngine {
     this.after(this.config.captureMs, () => this.evaluate());
   }
 
-  /** 取采集窗口最后 settleMs 内的手势众数；样本不足或分歧太大则判读取失败 */
+  /** 取采集窗口最后一段(settleMs)内的手势众数；样本不足或分歧太大则判读取失败 */
   private evaluate() {
     const end = this.shootAt + this.config.captureMs;
-    const start = end - this.config.settleMs;
+    const start = end - Math.min(this.config.settleMs, this.config.captureMs * 0.6);
     const win = this.frames.filter((f) => f.t >= start && f.t <= end && f.present && f.area >= this.config.minHandArea);
     const votes: Record<string, number> = {};
     let n = 0;
@@ -325,6 +331,7 @@ export class GameEngine {
 
   private fail() {
     this.failures++;
+    this.peekGuard = true;
     this.phase = "retry";
     this.count = null;
     this.message = this.failures >= 2 ? "Still can't read it — staff can press R / P / S" : "Couldn't read your hand — hold it clear of the frame edge";

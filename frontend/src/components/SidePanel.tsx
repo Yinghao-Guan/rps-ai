@@ -53,20 +53,23 @@ export default function SidePanel({ snap, tele, onStart, onStop, onSettings }: P
         </div>
       </Section>
 
-      <Section title={`AI // prediction of your next move${snap.exploited === null ? "" : snap.exploited ? " · exploiting" : " · random"}`}>
-        {MOVES.map((m) => {
-          const p = snap.prediction?.[m] ?? 1 / 3;
-          return (
-            <div key={m} className="mb-1 flex items-center gap-2">
-              <span className="w-6 text-base">{MOVE_EMOJI[m]}</span>
-              <div className="h-3 flex-1 overflow-hidden rounded bg-white/10">
-                <div className="h-full bg-accent transition-[width] duration-300" style={{ width: `${p * 100}%` }} />
+      {/* series 模式下隐藏预测：AI 的出招是对预测的最优反制，显示出来等于泄题 */}
+      {match.mode !== "series" && (
+        <Section title={`AI // prediction of your next move${snap.exploited === null ? "" : snap.exploited ? " · exploiting" : " · random"}`}>
+          {MOVES.map((m) => {
+            const p = snap.prediction?.[m] ?? 1 / 3;
+            return (
+              <div key={m} className="mb-1 flex items-center gap-2">
+                <span className="w-6 text-base">{MOVE_EMOJI[m]}</span>
+                <div className="h-3 flex-1 overflow-hidden rounded bg-white/10">
+                  <div className="h-full bg-accent transition-[width] duration-300" style={{ width: `${p * 100}%` }} />
+                </div>
+                <span className="w-10 text-right tabular-nums">{(p * 100).toFixed(0)}%</span>
               </div>
-              <span className="w-10 text-right tabular-nums">{(p * 100).toFixed(0)}%</span>
-            </div>
-          );
-        })}
-      </Section>
+            );
+          })}
+        </Section>
+      )}
 
       <Section title="Vision">
         <Row k="camera" v={tele.status === "error" ? `error: ${tele.error}` : `${tele.status} · ${tele.video}`} />

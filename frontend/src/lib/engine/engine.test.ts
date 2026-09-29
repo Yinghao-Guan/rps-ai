@@ -135,3 +135,41 @@ test("learning mode: AI is random & unscored during learning rounds; config chan
   assert.equal(engine.getSnapshot().match.rounds.length, 0);
   engine.dispose();
 });
+
+test("AI move is public at SHOOT (capturing) but nonce is not; hidden during countdown", async () => {
+  const engine = new GameEngine({ config: { ...fast, mode: "quick" }, ...timing });
+  engine.startMatch();
+  const stop = camera(engine, () => ({ present: true, move: "rock" }));
+  await waitFor(engine, (s) => s.phase === "countdown");
+  assert.equal(engine.getSnapshot().aiMove, null);
+  await waitFor(engine, (s) => s.phase === "capturing");
+  const s = engine.getSnapshot();
+  assert.ok(s.aiMove, "AI move shown at SHOOT");
+  assert.equal(s.count, 0);
+  assert.equal(s.humanMove, null);
+  assert.equal(s.nonce, null);
+  assert.equal(s.outcome, null);
+  stop();
+  engine.dispose();
+});
+
+test("after a misread the retried round is pure random (can't peek by hiding your hand)", async () => {
+  // quickEdge=1 且首局预测有可利用的边际 → 正常情况下 AI 会“利用预测”
+  const cfg = { ...fast, mode: "quick" as const, quickEdge: 1 };
+  const normal = new GameEngine({ config: cfg, ...timing });
+  normal.startMatch();
+  normal.startNow();
+  assert.equal(normal.getSnapshot().exploited, true, "baseline: exploits when it can");
+  normal.dispose();
+
+  const engine = new GameEngine({ config: cfg, ...timing });
+  engine.startMatch();
+  const stop = camera(engine, () => ({ present: false, move: null })); // 故意藏手
+  engine.startNow();
+  await waitFor(engine, (s) => s.phase === "retry");
+  await waitFor(engine, (s) => s.phase === "idle");
+  engine.startNow();
+  assert.equal(engine.getSnapshot().exploited, false, "retry round must not exploit");
+  stop();
+  engine.dispose();
+});

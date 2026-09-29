@@ -17,7 +17,10 @@ export type GameConfig = {
   deepEdge: number;
   /** 倒数每一拍的间隔 (ms) */
   beatMs: number;
-  /** SHOOT 之后的采集窗口 (ms)；取窗口最后 settleMs 内的手势 */
+  /**
+   * SHOOT 之后的采集窗口 (ms)；取窗口最后 settleMs 内的手势。
+   * AI 的招在 SHOOT 时就公开，窗口必须短于“看到→反应→变手形”所需的时间(≈300–400ms)，防止玩家看了再变。
+   */
   captureMs: number;
   settleMs: number;
   /** 手需要连续出现多久才自动开始 (ms) */
@@ -34,8 +37,8 @@ export const DEFAULT_CONFIG: GameConfig = {
   quickEdge: 0.4,
   deepEdge: 0.9,
   beatMs: 700,
-  captureMs: 700,
-  settleMs: 300,
+  captureMs: 350,
+  settleMs: 200,
   dwellMs: 500,
   minHandArea: 0.01,
 };
