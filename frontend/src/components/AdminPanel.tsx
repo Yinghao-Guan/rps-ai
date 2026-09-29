@@ -15,9 +15,9 @@ type Props = {
 export default function AdminPanel(p: Props) {
   const c = p.config;
   return (
-    <div className="absolute inset-y-0 right-0 z-20 w-[380px] overflow-y-auto border-l border-accent/40 bg-panel/95 p-4 text-sm shadow-2xl backdrop-blur">
+    <div className="slim-scroll absolute inset-y-0 right-0 z-20 w-[440px] overflow-y-auto border-l border-accent/50 bg-panel/97 p-5 text-sm shadow-[0_0_60px_rgba(0,0,0,0.8)]">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-bold">Settings</h2>
+        <div><div className="text-[10px] tracking-wider text-dim"><span className="text-accent">$</span> config --edit</div><h2 className="display text-lg">SETTINGS</h2></div>
         <button className="rounded border border-line px-2 py-1 text-dim hover:text-fg" onClick={p.onClose}>
           Close
         </button>

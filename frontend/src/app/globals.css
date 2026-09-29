@@ -1,24 +1,35 @@
 @import "tailwindcss";
 
+/* 配色取自社团海报 / smccs.club：墨绿黑底 + 薄荷绿主色 + logo 的青蓝作辅色 */
 :root {
-  --bg: #07090f;
-  --panel: #0d1220;
-  --line: #1c2740;
-  --fg: #e6edf7;
-  --dim: #7c8aa5;
-  --accent: #38e8ff;
+  --bg: #050d0a;
+  --panel: #071a14;
+  --line: #17493a;
+  --line-strong: #2a9c72;
+  --accent: #3fe0a0;
+  --accent-2: #2bb8d6;
+  --fg: #e8fff6;
+  --dim: #7fa596;
+  --warn: #ffcf5c;
+  --bad: #ff5d73;
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-panel: var(--panel);
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
   --color-fg: var(--fg);
   --color-dim: var(--dim);
-  --color-accent: var(--accent);
-  /* 系统字体：现场可能没网，不依赖 Google Fonts */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  /* 字体随包离线打包（@fontsource）：标题 Russo One，正文 Roboto Mono（与官网一致）。
+     字符雨用到的半角片假名走系统 CJK 字体回退（macOS 冬青/Windows 游ゴシック/Linux Noto CJK）。 */
+  --font-display: "Russo One", Impact, "Arial Black", sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-sans: var(--font-mono);
 }
 
 html,
@@ -26,8 +37,45 @@ body {
   height: 100%;
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
   overflow: hidden;
+}
+
+/* 面板：半透明墨绿 + 细描边圆角，和海报里的信息框一致 */
+.panel {
+  background: rgba(5, 20, 15, 0.8);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+/* 标题字：Russo One 斜体 */
+.display {
+  font-family: var(--font-display);
+  font-style: italic;
+  letter-spacing: -0.01em;
+}
+
+.glow {
+  text-shadow: 0 0 28px rgba(63, 224, 160, 0.55), 0 0 4px rgba(63, 224, 160, 0.4);
+}
+.glow-bad {
+  text-shadow: 0 0 28px rgba(255, 93, 115, 0.55);
+}
+.glow-warn {
+  text-shadow: 0 0 28px rgba(255, 207, 92, 0.5);
+}
+
+/* 闪烁光标 _ */
+.cursor::after {
+  content: "_";
+  color: var(--accent);
+  animation: blink 1.05s steps(1) infinite;
+  margin-left: 0.04em;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
 }
 
 .pop {
@@ -42,4 +90,21 @@ body {
     transform: scale(1);
     opacity: 1;
   }
+}
+
+/* 把 emoji 手势调成薄荷绿单色，融进配色 */
+.emoji-mint {
+  filter: grayscale(1) sepia(1) hue-rotate(72deg) saturate(2.6) brightness(1.15);
+}
+
+/* CRT 扫描线 */
+.scanlines {
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.5) 0, rgba(255, 255, 255, 0.5) 1px, transparent 1px, transparent 3px);
+  opacity: 0.05;
+}
+
+/* 侧栏滚动条 */
+.slim-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }

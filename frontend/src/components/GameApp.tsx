@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { GameEngine } from "@/lib/engine/engine";
+import { GameEngine, type Snapshot } from "@/lib/engine/engine";
 import type { GameConfig } from "@/lib/game/config";
-import { MODE_LABEL } from "@/lib/game/config";
-import { progressLabel } from "@/lib/game/match";
 import { loadPersisted, loadSettings, saveSettings, savePersisted, type Settings } from "@/lib/persist";
 import { drawHand } from "@/lib/vision/draw";
 import { createLandmarker, detectHand, type TrackedHand } from "@/lib/vision/tracker";
 import AdminPanel from "./AdminPanel";
+import Header from "./Header";
+import MatrixRain, { type Mood } from "./MatrixRain";
 import SidePanel, { type Telemetry } from "./SidePanel";
 import Stage from "./Stage";
 
@@ -178,54 +178,57 @@ export default function GameApp() {
     update({ config: { ...settings.config, ...patch } });
   };
 
-  const { match } = snap;
   const flip = mirror ? { transform: "scaleX(-1)" } : undefined;
+  const cls = tele.cls;
 
   return (
-    <div className="relative flex h-full">
-      <main className="flex min-w-0 flex-1 flex-col gap-3 p-4">
-        <header className="flex items-end justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.3em] text-dim">{MODE_LABEL[match.mode]}</div>
-            <div className="text-2xl font-bold">{snap.phase === "standby" ? "Standby" : progressLabel(match)}</div>
-          </div>
-          <div className="flex items-center gap-6 text-4xl font-black tabular-nums">
-            <span>
-              <span className="mr-2 text-sm font-semibold tracking-widest text-dim">YOU</span>
-              {match.humanWins}
-            </span>
-            <span className="text-dim">—</span>
-            <span>
-              {match.aiWins}
-              <span className="ml-2 text-sm font-semibold tracking-widest text-dim">AI</span>
-            </span>
-          </div>
-        </header>
+    <div className="relative h-full overflow-hidden">
+      <MatrixRain mood={moodOf(snap)} />
+      <div className="relative z-10 flex h-full">
+        <main className="flex min-w-0 flex-1 flex-col gap-4 p-5">
+          <Header snap={snap} />
 
-        <div className="flex min-h-0 flex-1 items-center justify-center">
-          <div className="relative aspect-video max-h-full max-w-full overflow-hidden rounded-2xl border border-line bg-black" style={{ height: "100%" }}>
-            <video ref={videoRef} muted playsInline className="absolute inset-0 h-full w-full object-cover" style={flip} />
-            <canvas ref={canvasRef} className="absolute inset-0 h-full w-full object-cover" style={flip} />
-            <Stage snap={snap} cameraReady={tele.status === "running"} />
-            {tele.status === "error" && (
-              <div className="absolute inset-x-0 bottom-0 bg-rose-900/80 p-3 text-center text-sm">
-                Camera error: {tele.error}. Allow camera access, or pick another camera in Settings.
+          <div className="flex min-h-0 flex-1 items-center justify-center">
+            <div
+              className="relative aspect-video max-h-full max-w-full overflow-hidden rounded-2xl border border-line-strong bg-black/55 shadow-[0_0_60px_rgba(63,224,160,0.12)]"
+              style={{ height: "100%" }}
+            >
+              <video ref={videoRef} muted playsInline className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${snap.phase === "standby" ? "opacity-30" : "opacity-100"}`} style={flip} />
+              <canvas ref={canvasRef} className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${snap.phase === "standby" ? "opacity-30" : "opacity-100"}`} style={flip} />
+              <div className="scanlines pointer-events-none absolute inset-0" />
+              <Stage snap={snap} cameraReady={tele.status === "running"} />
+
+              {/* HUD 边角框 */}
+              {["left-3 top-3 border-l-2 border-t-2", "right-3 top-3 border-r-2 border-t-2", "bottom-3 left-3 border-b-2 border-l-2", "bottom-3 right-3 border-b-2 border-r-2"].map((c) => (
+                <div key={c} className={`pointer-events-none absolute h-6 w-6 border-accent ${c}`} />
+              ))}
+              <div className="pointer-events-none absolute left-9 top-3 rounded-md bg-black/55 px-2 py-1 text-[11px] tracking-wider text-dim">
+                <span className={tele.status === "running" ? "text-accent" : "text-bad"}>●</span> CAM 01 · {tele.video} · {tele.fps.toFixed(0)} fps
               </div>
-            )}
-          </div>
-        </div>
-      </main>
+              <div className="pointer-events-none absolute bottom-3 left-9 rounded-md bg-black/55 px-2 py-1 text-[11px] tracking-wider text-dim">
+                HAND ▸ <span className="text-accent">{cls?.move ? `${cls.move.toUpperCase()} ${(cls.confidence * 100).toFixed(0)}%` : "—"}</span>
+              </div>
 
-      <SidePanel
-        snap={snap}
-        tele={tele}
-        onStart={() => engine.startMatch()}
-        onStop={() => {
-          const inProgress = snap.match.rounds.length > 0 && snap.match.stage !== "over";
-          if (!inProgress || window.confirm("Stop the current match?")) engine.abort();
-        }}
-        onSettings={() => setAdminOpen((o) => !o)}
-      />
+              {tele.status === "error" && (
+                <div className="absolute inset-x-0 bottom-0 bg-bad/25 p-3 text-center text-sm text-fg backdrop-blur-sm">
+                  Camera error: {tele.error}. Allow camera access, or pick another camera in Settings.
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
+
+        <SidePanel
+          snap={snap}
+          tele={tele}
+          onStart={() => engine.startMatch()}
+          onStop={() => {
+            const inProgress = snap.match.rounds.length > 0 && snap.match.stage !== "over";
+            if (!inProgress || window.confirm("Stop the current match?")) engine.abort();
+          }}
+          onSettings={() => setAdminOpen((o) => !o)}
+        />
+      </div>
 
       {adminOpen && (
         <AdminPanel
@@ -242,4 +245,12 @@ export default function GameApp() {
       )}
     </div>
   );
+}
+
+/** 字符雨的“情绪”：待机暗而慢，对局中变亮，赢了爆亮，输了转红 */
+function moodOf(s: Snapshot): Mood {
+  if (s.phase === "matchOver") return s.match.winner === "human" ? "win" : "lose";
+  if (s.phase === "result") return s.outcome === "win" ? "win" : s.outcome === "lose" ? "lose" : "active";
+  if (s.phase === "countdown" || s.phase === "capturing" || s.phase === "reveal") return "active";
+  return "idle";
 }

@@ -8,7 +8,7 @@
 2. **Git 仅本地**：只有本地仓库，永远不建远程、不 push。何时提交由我判断；提交信息末尾带 Co-Authored-By 署名。
 3. **前端 Next.js，包管理只用 npm**（不用 yarn / pnpm）。
 4. **目前没有后端，也不要加。** AI 逻辑很轻，全部用 TypeScript 在浏览器里跑。用户不介意将来多开一个 Python 服务，但只有真出现重计算需求时才加（那时再决定框架，接口走同源 `/api/*` + Next rewrites）。
-5. **现场可能没网**：运行时不得依赖任何 CDN / 在线字体 / 在线模型。MediaPipe 的 wasm 由 `/mediapipe/*` 路由从 node_modules 托管，模型在 `frontend/public/models/`，字体用系统字体。
+5. **现场可能没网**：运行时不得依赖任何 CDN / 在线字体 / 在线模型。MediaPipe 的 wasm 由 `/mediapipe/*` 路由从 node_modules 托管，模型在 `frontend/public/models/`，字体用 `@fontsource` 随包打包（不用 next/font/google、不用 CDN）。
 
 ## 产品需求（用户已确认）
 
@@ -27,7 +27,10 @@
 - **可切回“经典版”**：Settings 里 “AI move timing” 开关，`revealAtShoot`（默认 true = 上面的 SHOOT 同时公开）；关掉 = 经典版：AI 的招采集结束后才揭晓、不显示 AI 卡片、用更长的采集窗口（`classicCaptureMs` 700 / `classicSettleMs` 300）、失败重试也不强制随机（因为没露出任何东西）。用户说倒数间隔很短时经典版更好用。
 - **series 模式隐藏 AI 预测面板**（否则玩家看预测就能反制 AI，等于泄题）；整场结束时在摄像头区显示大比分。quick / learning 目前仍显示预测（用户只要求 series 隐藏）。
 - **哈希锁定**：AI 在倒数前就锁定出招，右侧面板显示 `SHA-256(招式:nonce)`，揭晓时公开 nonce。用户明确说这主要是**视觉资产**（“很 CS、很 AI”），不是为了让人验证防作弊。
-- **UI 方向**：最终要有“AI 感”——侧边数据面板、MediaPipe 手部骨架（已有）、**可视化神经网络（尚未做）**在对局时动态变化。要与社团 logo / 风格 / 摊位装饰匹配（用户之后提供素材）。**目前 UI 只是“最简可用”，不要过早打磨**；等用户给风格再改。
+- **UI 设计（已定稿一版）**：风格取自社团 logo、秋季海报和官网 smccs.club，加上摊位装饰主题 **cmatrix**（摊位上有一台显示器一直跑 cmatrix）。要素：全屏**字符雨**背景（`MatrixRain`，半角片假名+数字；待机暗慢、对局中变亮、赢了爆亮、输了转红）；海报同款终端语言（面板标题 `$ cmd`、细描边圆角面板、斜体粗方标题+闪烁 `_` 光标、`FALL 2026` 描边药丸）；配色墨绿黑底 `#050d0a` + 薄荷绿 `#3fe0a0`（logo 青蓝 `#2bb8d6` 作辅色，输=红 `#ff5d73`，平=琥珀）；字体 **Russo One**（标题，斜体）+ **Roboto Mono**（正文），二者与官网一致，用 `@fontsource/*` 随包打包（离线可用）；emoji 手势用 CSS 滤镜调成薄荷单色（`.emoji-mint`）。侧栏有**动态神经网络**（`NeuralNet`）、哈希“解密”动画（`Scramble`）、预测条、识别遥测等 AI 感面板。设计令牌在 `globals.css` 顶部。
+  - ⚠️ **神经网络只是装饰动画**（用户明确要“假装在运行”）：不反映真实模型内部，也不泄露预测；活跃度只随对局阶段变化，输出节点在 AI 的招公开后才亮。不要在文案里给它编造参数量、准确率等数字。
+  - logo 用 `public/brand/logo.png`（用户提供的 180×180 透明 PNG，分辨率偏低，页眉里以 64px 显示；若拿到矢量/高清版应替换）。
+  - 字符雨里的半角片假名依赖系统 CJK 字体回退（macOS/Windows 自带；Linux 需装 Noto CJK，否则显示方块）。
 - 识别不出手势 → 本回合作废并提示重来（“Today”面板有误读率统计）；工作人员可按 R/P/S 人工录入。
 
 ## 目录结构
@@ -40,7 +43,7 @@ clubAI/
     ├── public/models/hand_landmarker.task     # MediaPipe 手部模型（Apache 2.0，已提交）
     └── src/
         ├── app/                  # page.tsx → GameLoader(ssr:false) → GameApp；mediapipe/[...path]/route.ts 托管 wasm
-        ├── components/           # GameApp（摄像头循环+布局）/ Stage（大字）/ SidePanel / AdminPanel
+        ├── components/           # GameApp（摄像头循环+布局）/ Header / Stage（大字）/ SidePanel / AdminPanel / MatrixRain / NeuralNet / Scramble
         └── lib/
             ├── game/             # types, config(三种模式+参数), match(对局规则，纯函数)
             ├── ai/               # predictor(马尔可夫), population(人群先验), strategy(出招决策)
