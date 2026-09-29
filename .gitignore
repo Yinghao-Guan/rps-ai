@@ -1,0 +1,35 @@
+# dependencies / build output
+node_modules/
+.next/
+out/
+
+# python (venv 按平台分开：backend/.venv-<platform>-<arch>)
+.venv*/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# env（示例文件用 .env.example，可提交）
+.env
+.env.*
+!.env.example
+
+# OS / 移动硬盘垃圾文件（macOS 在 exFAT 上会生成 ._* AppleDouble 文件）
+._*
+.DS_Store
+.AppleDouble
+.Spotlight-V100
+.Trashes
+.fseventsd
+.TemporaryItems
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+System Volume Information/
+
+# editor / logs
+.idea/
+.vscode/
+*.log
+*.tsbuildinfo

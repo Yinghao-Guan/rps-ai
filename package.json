@@ -1,0 +1,15 @@
+{
+  "name": "clubai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "石头剪子布 AI",
+  "engines": {
+    "node": ">=20.9"
+  },
+  "scripts": {
+    "setup": "node scripts/run.mjs setup",
+    "dev": "node scripts/run.mjs dev",
+    "build": "node scripts/run.mjs build",
+    "start": "node scripts/run.mjs start"
+  }
+}
