@@ -59,7 +59,7 @@ clubAI/
 
 | 命令 | 作用 |
 |---|---|
-| `npm run dev` | 开发服务器 `http://localhost:3000`（缺依赖时自动装） |
+| `npm run dev` | 开发服务器 `http://localhost:3000`（缺依赖时自动装；**不要**在项目根目录跑 `npm install`，根目录无依赖） |
 | `npm run build` / `npm run start` | 生产构建 / 生产启动（**展示日建议用生产模式**） |
 | `npm run setup` | 只装/校验依赖 |
 | `cd frontend && npm run lint` | ESLint |
@@ -83,6 +83,8 @@ T7 是 **exFAT**：没有符号链接、没有可执行位；macOS 还会不停�
 - **不要用符号链接，不要依赖 `chmod +x` / shebang 直接执行。** 脚本一律 `node scripts/x.mjs` 方式调用。
 - `frontend/.npmrc` 里 `bin-links=false`：node_modules 里没有 `.bin`，所以 `package.json` 的脚本要写成 `node ./node_modules/<pkg>/...`，**不能直接写 `next` / `eslint`**。
 - **node_modules 不跨平台**（含原生二进制）。启动器在 `node_modules/.clubai-platform` 记录平台，换系统后第一次运行会自动 `npm ci` 重装（需联网，**展示前务必在目标电脑上先跑一次**）。`package-lock.json` 含全平台条目，务必提交。
+- **`.next` 也不能跨平台/跨盘符复用**（含绝对路径）。启动器在 `.next/.clubai-stamp` 记录“平台|项目路径”，不一致就清掉重建；`npm run start` 缺构建产物时自动 build。已实测“换平台冷启动”：只敲 `npm run start`，约 30 秒（自动 npm ci + build + 启动）。
+- 服务只绑定 `127.0.0.1`（`next -H 127.0.0.1`），避免 Windows 弹防火墙提示、也不对局域网暴露。摄像头需要安全上下文，`localhost` 满足。
 - **`._*` 文件会被 eslint/tsc 当源码解析而报错**（真发生过）。已在 `eslint.config.mjs` / `tsconfig.json` / `.gitignore` 里排除，启动器每次也会清理。看到奇怪解析错误先查 `._xxx`。
 - `.gitattributes` 强制 LF（`.bat/.cmd/.ps1` 为 CRLF）。本地仓库已设 `core.fileMode=false`、`core.symlinks=false`、`core.autocrlf=false`。
 - 路径处理：Node 用 `path.join`，不拼 `/` 或 `\`。引用文件时大小写必须与磁盘完全一致（exFAT 不区分大小写，macOS 上写错不报错，换到 Linux 才炸）。

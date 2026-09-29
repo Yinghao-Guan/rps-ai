@@ -11,7 +11,7 @@
 // - 不使用符号链接、不依赖可执行位：一律 `node xxx.js` 调用。
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -24,6 +24,10 @@ const PORT = process.env.PORT ?? "3000";
 const NODE_MODULES = join(FRONTEND, "node_modules");
 const NODE_STAMP = join(NODE_MODULES, ".clubai-platform");
 const NEXT_BIN = join(NODE_MODULES, "next", "dist", "bin", "next");
+const NEXT_DIR = join(FRONTEND, ".next");
+const NEXT_STAMP = join(NEXT_DIR, ".clubai-stamp");
+// .next 里有平台相关内容和绝对路径（盘符/挂载点），所以按“平台 + 项目路径”打标记
+const NEXT_STAMP_VALUE = `${TAG}|${FRONTEND}`;
 
 function fail(msg) {
   console.error(`\n[run] ${msg}`);
@@ -62,22 +66,39 @@ function ensureFrontend() {
   writeFileSync(NODE_STAMP, TAG);
 }
 
+// 硬盘换了系统 / 换了盘符后，旧的 .next（开发缓存、构建产物）不能复用，直接清掉重建
+function ensureNextDir() {
+  if (!existsSync(NEXT_DIR)) return;
+  if (existsSync(NEXT_STAMP) && readFileSync(NEXT_STAMP, "utf8") === NEXT_STAMP_VALUE) return;
+  console.log("[setup] 平台或路径变了，清理旧的 .next 构建缓存…");
+  rmSync(NEXT_DIR, { recursive: true, force: true });
+}
+
+function stampNextDir() {
+  mkdirSync(NEXT_DIR, { recursive: true });
+  writeFileSync(NEXT_STAMP, NEXT_STAMP_VALUE);
+}
+
 function setup() {
   cleanAppleDouble();
   ensureFrontend();
+  ensureNextDir();
 }
 
 function build() {
   setup();
   runSync(process.execPath, [NEXT_BIN, "build"], { cwd: FRONTEND });
+  stampNextDir(); // next build 会清空 .next，所以构建完再打标记
 }
 
 function serve(dev) {
   setup();
   if (!dev && !existsSync(join(FRONTEND, ".next", "BUILD_ID"))) build();
 
+  if (dev) stampNextDir();
   console.log(`\n[run] http://localhost:${PORT}   Ctrl+C 退出\n`);
-  const child = spawn(process.execPath, [NEXT_BIN, dev ? "dev" : "start", "-p", PORT], { cwd: FRONTEND, stdio: "inherit" });
+  // 只监听本机回环：Windows 上不会弹“允许 Node.js 访问网络”的防火墙提示，现场也不对局域网暴露
+  const child = spawn(process.execPath, [NEXT_BIN, dev ? "dev" : "start", "-p", PORT, "-H", "127.0.0.1"], { cwd: FRONTEND, stdio: "inherit" });
   child.on("error", (err) => fail(`启动失败：${err.message}`));
   child.on("exit", (code) => process.exit(code ?? 0));
   const stop = () => child.kill();
