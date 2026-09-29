@@ -1,6 +1,5 @@
 import type { Snapshot } from "@/lib/engine/engine";
 import { MODE_LABEL } from "@/lib/game/config";
-import { MOVES } from "@/lib/game/types";
 import { sha256Hex } from "@/lib/sha256";
 import type { Classification } from "@/lib/vision/classify";
 import { MOVE_EMOJI } from "./labels";
@@ -77,23 +76,7 @@ export default function SidePanel({ snap, tele, onStart, onStop, onSettings }: P
         </div>
       </Panel>
 
-      {/* series 模式下隐藏预测：AI 的出招是对预测的最优反制，显示出来等于泄题 */}
-      {match.mode !== "series" && (
-        <Panel cmd="predict --next" title="YOUR NEXT MOVE" right={<Chip live={snap.exploited === true}>{snap.exploited === null ? "—" : snap.exploited ? "EXPLOITING" : "RANDOM"}</Chip>}>
-          {MOVES.map((m) => {
-            const p = snap.prediction?.[m] ?? 1 / 3;
-            return (
-              <div key={m} className="mb-1.5 flex items-center gap-2">
-                <span className="emoji-mint w-6 text-base">{MOVE_EMOJI[m]}</span>
-                <div className="h-3 flex-1 overflow-hidden rounded-sm bg-white/10">
-                  <div className="h-full bg-accent shadow-[0_0_10px_#3fe0a0] transition-[width] duration-300" style={{ width: `${p * 100}%` }} />
-                </div>
-                <span className="w-10 text-right tabular-nums text-fg">{(p * 100).toFixed(0)}%</span>
-              </div>
-            );
-          })}
-        </Panel>
-      )}
+      {/* 不显示 AI 对玩家下一招的预测（也不显示 exploiting/random 状态）：显示出来玩家就能反制 AI */}
 
       <Panel cmd="vision --scan" title="HAND TRACKING" right={<Chip live={tele.status === "running"}>{tele.status === "running" ? `${tele.fps.toFixed(0)} FPS` : tele.status.toUpperCase()}</Chip>}>
         <Row k="camera" v={tele.status === "error" ? `error: ${tele.error}` : tele.video} />
