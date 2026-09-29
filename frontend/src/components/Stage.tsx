@@ -78,7 +78,7 @@ export default function Stage({ snap, cameraReady }: { snap: Snapshot; cameraRea
     body = <div className={`${big} max-w-3xl text-center text-[min(2.25rem,3vw)] text-amber-300`}>{snap.message}</div>;
   }
 
-  const showAiCard = phase === "countdown" || phase === "capturing";
+  const showAiCard = snap.config.revealAtShoot && (phase === "countdown" || phase === "capturing");
   return (
     <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/25">
       {body}

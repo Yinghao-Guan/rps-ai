@@ -57,7 +57,26 @@ export default function AdminPanel(p: Props) {
 
       <hr className="my-4 border-line" />
       <Slider label="Beat interval (ms)" v={c.beatMs} min={400} max={1100} step={50} onChange={(v) => p.onConfig({ beatMs: v })} />
-      <Slider label="Capture time after SHOOT (ms) · shorter = harder to peek at AI" v={c.captureMs} min={250} max={700} step={50} onChange={(v) => p.onConfig({ captureMs: v })} />
+      <Label>AI move timing</Label>
+      <div className="mb-2 grid grid-cols-2 gap-2">
+        {([true, false] as const).map((on) => (
+          <button
+            key={String(on)}
+            onClick={() => p.onConfig({ revealAtShoot: on })}
+            className={`rounded border px-3 py-2 text-left ${c.revealAtShoot === on ? "border-accent bg-accent/10" : "border-line hover:border-dim"}`}
+          >
+            {on ? "Shown at SHOOT" : "Classic"}
+          </button>
+        ))}
+      </div>
+      <p className="mb-3 text-xs text-dim">
+        {c.revealAtShoot
+          ? "AI's move flips over at SHOOT, and your hand is read within a short window. Default."
+          : "Classic: AI's move stays hidden until you have thrown; longer read window. Better when the countdown beat is short."}
+      </p>
+      {c.revealAtShoot && (
+        <Slider label="Read window after SHOOT (ms) · shorter = harder to peek" v={c.captureMs} min={250} max={700} step={50} onChange={(v) => p.onConfig({ captureMs: v })} />
+      )}
       <Slider label="Auto-start hold (ms)" v={c.dwellMs} min={200} max={1500} step={100} onChange={(v) => p.onConfig({ dwellMs: v })} />
       <Slider label="Min hand size (frame fraction)" v={c.minHandArea} min={0.002} max={0.1} step={0.002} onChange={(v) => p.onConfig({ minHandArea: v })} fmt={(v) => v.toFixed(3)} />
 

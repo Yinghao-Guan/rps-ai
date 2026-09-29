@@ -19,14 +19,24 @@ import { randomNonce, sha256Hex } from "../sha256.ts";
  */
 export type Phase = "standby" | "idle" | "countdown" | "capturing" | "reveal" | "result" | "retry" | "matchOver";
 
-export type Totals = { matches: number; humanMatchWins: number; aiMatchWins: number; humanRounds: number; aiRounds: number; ties: number };
+export type Totals = {
+  matches: number;
+  humanMatchWins: number;
+  aiMatchWins: number;
+  humanRounds: number;
+  aiRounds: number;
+  ties: number;
+  /** 手势采集次数 / 其中读不出的次数（用来观察识别的稳定性） */
+  attempts: number;
+  misreads: number;
+};
 
 export type Persisted = { population: PopulationStats; totals: Totals };
 
 export function emptyPersisted(): Persisted {
   return {
     population: emptyPopulation(),
-    totals: { matches: 0, humanMatchWins: 0, aiMatchWins: 0, humanRounds: 0, aiRounds: 0, ties: 0 },
+    totals: { matches: 0, humanMatchWins: 0, aiMatchWins: 0, humanRounds: 0, aiRounds: 0, ties: 0, attempts: 0, misreads: 0 },
   };
 }
 
@@ -143,7 +153,7 @@ export class GameEngine {
       sealedHash: this.sealedHash,
       nonce: revealed ? this.nonce : null,
       // AI 的招在 SHOOT 的同时公开（此前只显示锁定的哈希）
-      aiMove: revealed || this.phase === "capturing" ? (this.decision?.move ?? null) : null,
+      aiMove: revealed || (this.phase === "capturing" && this.config.revealAtShoot) ? (this.decision?.move ?? null) : null,
       humanMove: revealed ? this.humanMove : null,
       outcome: showOutcome ? this.outcome : null,
       prediction: this.decision?.predicted ?? null,
@@ -304,13 +314,27 @@ export class GameEngine {
     this.count = 0;
     this.shootAt = this.now();
     this.emit();
-    this.after(this.config.captureMs, () => this.evaluate());
+    this.after(this.captureWindow().captureMs, () => this.evaluate());
+  }
+
+  /** 采集窗口：SHOOT 同时公开 AI 招时用短窗口（防看了再变），经典版用长窗口 */
+  private captureWindow() {
+    const c = this.config;
+    return c.revealAtShoot ? { captureMs: c.captureMs, settleMs: c.settleMs } : { captureMs: c.classicCaptureMs, settleMs: c.classicSettleMs };
+  }
+
+  private bump(patch: Partial<Totals>) {
+    const t = { ...this.persisted.totals };
+    for (const k of Object.keys(patch) as (keyof Totals)[]) t[k] += patch[k] ?? 0;
+    this.persisted = { ...this.persisted, totals: t };
+    this.save(this.persisted);
   }
 
   /** 取采集窗口最后一段(settleMs)内的手势众数；样本不足或分歧太大则判读取失败 */
   private evaluate() {
-    const end = this.shootAt + this.config.captureMs;
-    const start = end - Math.min(this.config.settleMs, this.config.captureMs * 0.6);
+    const cap = this.captureWindow();
+    const end = this.shootAt + cap.captureMs;
+    const start = end - Math.min(cap.settleMs, cap.captureMs * 0.6);
     const win = this.frames.filter((f) => f.t >= start && f.t <= end && f.present && f.area >= this.config.minHandArea);
     const votes: Record<string, number> = {};
     let n = 0;
@@ -323,6 +347,7 @@ export class GameEngine {
     const [top, topN] = Object.entries(votes).sort((a, b) => b[1] - a[1])[0] ?? [null, 0];
     if (top && n >= 3 && topN / n >= 0.6 && n / Math.max(1, win.length) >= 0.5) {
       this.failures = 0;
+      this.bump({ attempts: 1 });
       this.resolve(top as Move);
     } else {
       this.fail();
@@ -331,7 +356,9 @@ export class GameEngine {
 
   private fail() {
     this.failures++;
-    this.peekGuard = true;
+    this.bump({ attempts: 1, misreads: 1 });
+    // 只有 AI 的招已经公开时才需要防偷看；经典版此时什么都没露出
+    this.peekGuard = this.config.revealAtShoot;
     this.phase = "retry";
     this.count = null;
     this.message = this.failures >= 2 ? "Still can't read it — staff can press R / P / S" : "Couldn't read your hand — hold it clear of the frame edge";

@@ -27,7 +27,10 @@ function write(key: string, value: unknown) {
 
 export function loadPersisted(): Persisted {
   const p = read<Persisted>(KEY_STATS);
-  if (p?.population?.first && p.population.ctx && p.totals) return p;
+  if (p?.population?.first && p.population.ctx && p.totals) {
+    // 合并默认值：旧版本存下的统计里没有后来新增的字段
+    return { population: p.population, totals: { ...emptyPersisted().totals, ...p.totals } };
+  }
   return emptyPersisted();
 }
 export const savePersisted = (p: Persisted) => write(KEY_STATS, p);

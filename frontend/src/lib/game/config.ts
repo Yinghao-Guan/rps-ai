@@ -23,6 +23,14 @@ export type GameConfig = {
    */
   captureMs: number;
   settleMs: number;
+  /**
+   * true（默认）：SHOOT 的同一时刻公开 AI 的招，配短采集窗口 + 防偷看。
+   * false（经典版）：AI 的招在玩家出手、采集结束后才揭晓，用下面更长的采集窗口，
+   *                  倒数间隔很短时更好用。
+   */
+  revealAtShoot: boolean;
+  classicCaptureMs: number;
+  classicSettleMs: number;
   /** 手需要连续出现多久才自动开始 (ms) */
   dwellMs: number;
   /** 手在画面中的最小占比（包围盒面积/画面面积），过滤背景里的围观者 */
@@ -39,6 +47,9 @@ export const DEFAULT_CONFIG: GameConfig = {
   beatMs: 700,
   captureMs: 350,
   settleMs: 200,
+  revealAtShoot: true,
+  classicCaptureMs: 700,
+  classicSettleMs: 300,
   dwellMs: 500,
   minHandArea: 0.01,
 };

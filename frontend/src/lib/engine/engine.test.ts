@@ -173,3 +173,48 @@ test("after a misread the retried round is pure random (can't peek by hiding you
   stop();
   engine.dispose();
 });
+
+test("classic timing (revealAtShoot=false): AI move hidden until after capture; retry NOT forced random", async () => {
+  const cfg = { ...fast, mode: "quick" as const, quickEdge: 1, revealAtShoot: false, classicCaptureMs: 150, classicSettleMs: 90 };
+  const engine = new GameEngine({ config: cfg, ...timing });
+  engine.startMatch();
+  const stop = camera(engine, () => ({ present: true, move: "rock" }));
+  await waitFor(engine, (s) => s.phase === "capturing");
+  assert.equal(engine.getSnapshot().aiMove, null, "hidden at SHOOT in classic mode");
+  await waitFor(engine, (s) => s.phase === "reveal");
+  assert.ok(engine.getSnapshot().aiMove, "revealed after capture");
+  stop();
+  engine.dispose();
+
+  // 经典版：读取失败后重试，AI 仍按预测出招（没有露出任何东西，无需强制随机）
+  const e2 = new GameEngine({ config: cfg, ...timing });
+  e2.startMatch();
+  const stop2 = camera(e2, () => ({ present: false, move: null }));
+  e2.startNow();
+  await waitFor(e2, (s) => s.phase === "retry");
+  await waitFor(e2, (s) => s.phase === "idle");
+  e2.startNow();
+  assert.equal(e2.getSnapshot().exploited, true);
+  stop2();
+  e2.dispose();
+});
+
+test("misread stats: attempts and misreads are counted", async () => {
+  const engine = new GameEngine({ config: { ...fast, mode: "quick" }, ...timing });
+  engine.startMatch();
+  const stop = camera(engine, () => ({ present: false, move: null }));
+  engine.startNow();
+  await waitFor(engine, (s) => s.phase === "retry");
+  let t = engine.getSnapshot().persisted.totals;
+  assert.deepEqual([t.attempts, t.misreads], [1, 1]);
+  engine.manual("rock");
+  await waitFor(engine, (s) => s.phase === "idle");
+  stop();
+  const stop2 = camera(engine, () => ({ present: true, move: "rock" }));
+  engine.startNow();
+  await waitFor(engine, (s) => s.phase === "reveal");
+  t = engine.getSnapshot().persisted.totals;
+  assert.deepEqual([t.attempts, t.misreads], [2, 1]);
+  stop2();
+  engine.dispose();
+});

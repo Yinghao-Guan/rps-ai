@@ -101,6 +101,7 @@ export default function SidePanel({ snap, tele, onStart, onStop, onSettings }: P
       <Section title="Today">
         <Row k="matches" v={`${t.matches}  (players ${t.humanMatchWins} · AI ${t.aiMatchWins})`} />
         <Row k="rounds" v={`players ${t.humanRounds} · AI ${t.aiRounds} · ties ${t.ties}`} />
+        <Row k="misread rate" v={t.attempts ? `${((t.misreads / t.attempts) * 100).toFixed(1)}%  (${t.misreads} / ${t.attempts})` : "—"} />
         <Row k="AI win rate" v={decided ? `${((t.aiRounds / decided) * 100).toFixed(1)}%` : "—"} />
         <Row k="crowd model" v={`${persisted.population.rounds} throws learned`} />
       </Section>
