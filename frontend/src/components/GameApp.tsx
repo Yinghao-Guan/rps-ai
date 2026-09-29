@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { playEngineEvent, playPreview, setSoundEnabled, unlockAudio } from "@/lib/audio/sfx";
 import { GameEngine, type Snapshot } from "@/lib/engine/engine";
 import type { GameConfig } from "@/lib/game/config";
 import { loadPersisted, loadSettings, saveSettings, savePersisted, type Settings } from "@/lib/persist";
@@ -30,7 +31,7 @@ type Live = { hand: TrackedHand | null; hands: number; inferMs: number; fps: num
 export default function GameApp() {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [engine] = useState(
-    () => new GameEngine({ config: loadSettings().config, persisted: loadPersisted(), save: savePersisted }),
+    () => new GameEngine({ config: loadSettings().config, persisted: loadPersisted(), save: savePersisted, onEvent: playEngineEvent }),
   );
   const snap = useSyncExternalStore(engine.subscribe, engine.getSnapshot, engine.getSnapshot);
 
@@ -149,6 +150,21 @@ export default function GameApp() {
     return () => clearInterval(id);
   }, []);
 
+  // ---------- 声音 ----------
+  const { sound } = settings;
+  useEffect(() => {
+    setSoundEnabled(sound);
+  }, [sound]);
+  // 浏览器要求音频由用户手势唤醒：任何点击 / 按键都会唤醒（点 Start match 就够了）
+  useEffect(() => {
+    window.addEventListener("pointerdown", unlockAudio);
+    window.addEventListener("keydown", unlockAudio);
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    };
+  }, []);
+
   // ---------- 键盘 ----------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -239,6 +255,15 @@ export default function GameApp() {
           onCamera={(id) => update({ cameraId: id })}
           mirror={mirror}
           onMirror={(m) => update({ mirror: m })}
+          sound={sound}
+          onSound={(on) => {
+            update({ sound: on });
+            if (on) {
+              setSoundEnabled(true);
+              unlockAudio();
+              setTimeout(playPreview, 60); // 等 AudioContext 进入 running 再试听
+            }
+          }}
           onResetStats={() => engine.resetStats()}
           onClose={() => setAdminOpen(false)}
         />

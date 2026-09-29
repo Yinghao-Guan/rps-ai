@@ -8,6 +8,8 @@ type Props = {
   onCamera: (id: string | null) => void;
   mirror: boolean;
   onMirror: (m: boolean) => void;
+  sound: boolean;
+  onSound: (on: boolean) => void;
   onResetStats: () => void;
   onClose: () => void;
 };
@@ -96,6 +98,9 @@ export default function AdminPanel(p: Props) {
       </select>
       <label className="mb-4 flex items-center gap-2">
         <input type="checkbox" checked={p.mirror} onChange={(e) => p.onMirror(e.target.checked)} /> Mirror preview
+      </label>
+      <label className="mb-4 flex items-center gap-2">
+        <input type="checkbox" checked={p.sound} onChange={(e) => p.onSound(e.target.checked)} /> Sound effects (countdown beeps, SHOOT, results)
       </label>
 
       <button

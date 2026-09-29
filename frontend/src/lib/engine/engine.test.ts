@@ -218,3 +218,22 @@ test("misread stats: attempts and misreads are counted", async () => {
   stop2();
   engine.dispose();
 });
+
+test("engine events fire in order: tick 3,2,1 → shoot → result → matchOver", async () => {
+  const events: string[] = [];
+  const engine = new GameEngine({
+    config: { ...fast, mode: "quick" },
+    ...timing,
+    matchOverMs: 100000,
+    onEvent: (e) => events.push(e.type === "tick" ? `tick${e.n}` : e.type === "result" ? `result:${e.outcome}` : e.type === "matchOver" ? `matchOver:${e.winner}` : e.type),
+  });
+  engine.startMatch();
+  const stop = camera(engine, () => ({ present: true, move: "rock" }));
+  await waitFor(engine, (s) => s.phase === "matchOver", 10000);
+  stop();
+  assert.deepEqual(events.slice(0, 5), ["tick3", "tick2", "tick1", "shoot", events[4]]);
+  assert.match(events[4], /^result:(win|lose|tie)$/);
+  assert.equal(events.filter((e) => e === "shoot").length, events.filter((e) => e.startsWith("result")).length, "one shoot per resolved round");
+  assert.match(events[events.length - 1], /^matchOver:(human|ai)$/);
+  engine.dispose();
+});

@@ -5,8 +5,8 @@ import { emptyPersisted, type Persisted } from "./engine/engine.ts";
 const KEY_STATS = "clubai.stats.v1";
 const KEY_SETTINGS = "clubai.settings.v1";
 
-export type Settings = { config: Partial<GameConfig>; cameraId: string | null; mirror: boolean };
-export const DEFAULT_SETTINGS: Settings = { config: {}, cameraId: null, mirror: true };
+export type Settings = { config: Partial<GameConfig>; cameraId: string | null; mirror: boolean; sound: boolean };
+export const DEFAULT_SETTINGS: Settings = { config: {}, cameraId: null, mirror: true, sound: true };
 
 function read<T>(key: string): T | null {
   try {

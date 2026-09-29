@@ -69,7 +69,15 @@ export type Snapshot = {
   persisted: Persisted;
 };
 
+/** 引擎在关键时刻发出的事件（音效等副作用挂在这上面，时间点与画面切换同步） */
+export type EngineEvent =
+  | { type: "tick"; n: number } // 倒数 3、2、1
+  | { type: "shoot" }
+  | { type: "result"; outcome: Outcome } // 一回合的结果（人类视角）
+  | { type: "matchOver"; winner: "human" | "ai" | null };
+
 export type EngineOptions = {
+  onEvent?: (e: EngineEvent) => void;
   config?: Partial<GameConfig>;
   persisted?: Persisted;
   save?: (p: Persisted) => void;
@@ -111,6 +119,7 @@ export class GameEngine {
   private readonly rng: () => number;
   private readonly now: () => number;
   private readonly save: (p: Persisted) => void;
+  private readonly onEvent: (e: EngineEvent) => void;
   private readonly revealMs: number;
   private readonly resultMs: number;
   private readonly retryMs: number;
@@ -120,6 +129,7 @@ export class GameEngine {
     this.config = { ...DEFAULT_CONFIG, ...o.config };
     this.persisted = o.persisted ?? emptyPersisted();
     this.save = o.save ?? (() => {});
+    this.onEvent = o.onEvent ?? (() => {});
     this.rng = o.rng ?? Math.random;
     this.now = o.now ?? (() => performance.now());
     this.revealMs = o.revealMs ?? 1100;
@@ -303,6 +313,7 @@ export class GameEngine {
       this.phase = "countdown";
       this.count = n;
       this.emit();
+      this.onEvent({ type: "tick", n });
       if (n > 1) this.after(beat, () => tick(n - 1));
       else this.after(beat, () => this.shoot());
     };
@@ -314,6 +325,7 @@ export class GameEngine {
     this.count = 0;
     this.shootAt = this.now();
     this.emit();
+    this.onEvent({ type: "shoot" });
     this.after(this.captureWindow().captureMs, () => this.evaluate());
   }
 
@@ -395,10 +407,12 @@ export class GameEngine {
     this.after(this.revealMs, () => {
       this.phase = "result";
       this.emit();
+      this.onEvent({ type: "result", outcome: this.outcome! });
       this.after(this.resultMs, () => {
         if (this.match.stage === "over") {
           this.phase = "matchOver";
           this.emit();
+          this.onEvent({ type: "matchOver", winner: this.match.winner });
           this.after(this.matchOverMs, () => this.abort());
         } else {
           this.toIdle();
