@@ -26,3 +26,7 @@ System Volume Information/
 .vscode/
 *.log
 *.tsbuildinfo
+
+# AI 助手的项目说明文件（只留在本地，不发布）
+CLAUDE.md
+AGENTS.md
