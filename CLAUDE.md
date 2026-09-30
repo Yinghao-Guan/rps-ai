@@ -5,7 +5,7 @@
 ## 硬性规则
 
 1. **跨平台、插盘即用**：项目放在 Samsung T7 移动硬盘（exFAT）上，须在 macOS / Windows / Linux 上运行且**不改代码**（目标设备已装好 Node 即可）。首选设备 ROG Strix SCAR 18（Windows，4090，摄像头 720p），备用 MacBook Pro 14" M4（1080p Center Stage 摄像头，可能外接 16" 4K 显示器）。
-2. **Git 仅本地**：只有本地仓库，永远不建远程、不 push。何时提交由我判断；提交信息末尾带 Co-Authored-By 署名。
+2. **Git**：远程仓库是 GitHub `Yinghao-Guan/rps-ai`（`origin`，用于分享到社团 Discord）。**只有用户明确要求才 push**；不要改写已推送的历史，除非用户要求。**提交信息里不要加任何 `Co-Authored-By` 或“Generated with”之类的署名行**（用户明确要求，覆盖默认行为）。何时提交由我判断。
 3. **前端 Next.js，包管理只用 npm**（不用 yarn / pnpm）。
 4. **目前没有后端，也不要加。** AI 逻辑很轻，全部用 TypeScript 在浏览器里跑。用户不介意将来多开一个 Python 服务，但只有真出现重计算需求时才加（那时再决定框架，接口走同源 `/api/*` + Next rewrites）。
 5. **现场可能没网**：运行时不得依赖任何 CDN / 在线字体 / 在线模型。MediaPipe 的 wasm 由 `/mediapipe/*` 路由从 node_modules 托管，模型在 `frontend/public/models/`，字体用 `@fontsource` 随包打包（不用 next/font/google、不用 CDN）。
